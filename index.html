@@ -137,8 +137,6 @@ body:not(.vazio) #secUpload{display:none}
       <div class="acoes">
         <span class="status" id="status">Carregando…</span>
         <button class="btn" id="btnExcel" type="button" title="Baixa o Excel com o prazo de cada pedido">⬇ Baixar Excel com prazos</button>
-        <button class="btn" id="btnArquivo" type="button" title="Carregue um novo relatório exportado do sistema (CSV ou XLSX)">⇧ Carregar arquivo</button>
-        <input type="file" id="inArquivo" accept=".csv,.xlsx,.xls" hidden>
         <button class="btn btn-primary" id="btnAtualizar" type="button"><span id="icoAtualizar">↻</span> Atualizar</button>
 
       </div>
@@ -163,13 +161,6 @@ body:not(.vazio) #secUpload{display:none}
   </div>
 
   <div id="aviso"></div>
-
-  <section class="card secao" id="secUpload">
-    <div class="drop" id="drop" tabindex="0" role="button" aria-label="Escolher o relatório">
-      <strong>Arraste o Excel do relatório aqui ou clique para escolher</strong>
-      <span>Relatório exportado do sistema (.xlsx ou .csv). O arquivo é processado no seu navegador.</span>
-    </div>
-  </section>
 
   <section class="card secao" id="secBusca">
     <h2 class="secao-titulo">Pesquisar pedido</h2>
@@ -244,16 +235,8 @@ const STATUS_GERAL = ["Concluído","Não coletado - Pagável","Retornado"];
 /* Status que ficam fora do OTD (Cobasi e PetLove) e status de devolução, que contam sempre como fora do prazo. */
 const EXCLUIR_OTD = ["not picked up","não coletado","cancelado","não coletado - pagável"];
 const DEVOLUCAO = /^(retornad|devolv|return)/i;
-/* PetLove: classificação oficial dos remetentes (lista enviada em 10/11/2026). Loja própria corte 17h, franquia 18h. */
-const LOJAS_PETLOVE = {
-  "franquia chácara klabin":"Franquia","franquia chapecó":"Franquia","franquia higienópolis":"Franquia","franquia morumbi":"Franquia",
-  "franquia osasco":"Franquia","franquia porto alegre":"Franquia","franquia recreio dos bandeirantes":"Franquia","franquia ribeirão preto":"Franquia",
-  "franquia santos":"Franquia","franquia sorocaba":"Franquia","franquia vila madalena":"Franquia",
-  "franquia perdizes":"Loja própria","petlove braz leme":"Loja própria","petlove campo belo":"Loja própria","petlove cidade jardim":"Loja própria",
-  "petlove moema":"Loja própria","petlove oscar freire":"Loja própria","petlove perdizes":"Loja própria","petlove portal do morumbi":"Loja própria",
-  "petlove portugal":"Loja própria","petlove santos":"Loja própria","petlove sócrates":"Loja própria","petlove tatuapé":"Loja própria","petlove tutóia":"Loja própria"
-};
-const tipoLojaPetLove = rem => LOJAS_PETLOVE[String(rem||'').trim().toLowerCase()] || 'Não cadastrada';
+/* PetLove: remetente que começa com "Franquia" é franquia (corte 18h); que começa com "Petlove" é loja própria (corte 17h). */
+const tipoLojaPetLove = rem => { const s=String(rem||'').trim(); return /^franquia/i.test(s)?'Franquia':/^pet\s*love/i.test(s)?'Loja própria':'Não cadastrada'; };
 const REGRAS = [
   { nome:"Cobasi Expressa · 2h", match:r=>/cobasi/i.test(r.companhia)&&(/expres/i.test(r.companhia)||/expres/i.test(r.tipo)),
     horas:2, excluir:EXCLUIR_OTD, retornadoFora:true },
@@ -772,7 +755,7 @@ const MSG={
   server_unavailable:'O Google está temporariamente indisponível. Tente atualizar em instantes.',
   formato:'A planilha foi lida, mas o formato não foi reconhecido. Peça ao Claude para ajustar o dashboard.',
   colunas:'A planilha foi lida, mas faltam colunas obrigatórias: ',
-  csv_publicado:'Não foi possível ler a aba Base publicada na web. Confira se ela continua publicada em CSV (Arquivo → Compartilhar → Publicar na web). Enquanto isso, use “Carregar arquivo”.'
+  csv_publicado:'Não foi possível ler a aba Base publicada na web. Confira se ela continua publicada em CSV (Arquivo → Compartilhar → Publicar na web).'
 };
 const OBRIGATORIAS=['ID de Entrega','ID de referência','Companhia','Data de criação','Data efetiva de entrega','Estado'];
 async function carregar(forcar){
@@ -809,7 +792,7 @@ async function carregar(forcar){
 function rodape(){
   $('rodape').innerHTML=[
     `${fmtInt(INFO.lidas)} linhas lidas da planilha · ${fmtInt(INFO.cobasi)} com data de criação · ${fmtInt(INFO.dup)} duplicadas removidas${INFO.semRegra?` · ${fmtInt(INFO.semRegra)} sem regra de SLA (fora do OTD)`:''}.`,
-    'Cobasi: criado até 11h → prazo no mesmo dia; depois das 11h → dia seguinte, até 23:59, de segunda a sábado; sábado após 11h e domingo vencem na segunda. PetLove: corte 17h para loja própria e 18h para franquia (lista oficial de remetentes), sábado 16h, domingo 14h, todos os dias, até 23:59. Remetente PetLove fora da lista aparece como “Não cadastrada” e usa o corte de loja própria (17h). Nos dois: ficam fora do OTD Not picked up, Não coletado, Cancelado e Não coletado – Pagável; Retornado/Devolvido contam sempre como fora do prazo; pedido sem entrega com prazo vencido conta como fora; os demais status entram no cálculo.',
+    'Cobasi: criado até 11h → prazo no mesmo dia; depois das 11h → dia seguinte, até 23:59, de segunda a sábado; sábado após 11h e domingo vencem na segunda. PetLove: corte 17h para loja própria (remetente “Petlove …”) e 18h para franquia (remetente “Franquia …”), sábado 16h, domingo 14h, todos os dias, até 23:59. Remetente PetLove fora desses dois padrões aparece como “Não cadastrada” e usa o corte de 17h. Nos dois: ficam fora do OTD Not picked up, Não coletado, Cancelado e Não coletado – Pagável; Retornado/Devolvido contam sempre como fora do prazo; pedido sem entrega com prazo vencido conta como fora; os demais status entram no cálculo.',
     'Duplicadas: Cobasi mantém uma linha por ID de Entrega (última atualização de status); PetLove mantém uma linha por ID de referência (primeira criação). OTD do motorista = entrega no mesmo dia da coleta. TMC = coleta efetiva − chegada na coleta; TME = entrega efetiva − coleta efetiva (pedidos concluídos). Pendente: retirar Source Cloned/New Delivery da PetLove quando a coluna existir no relatório.'
   ].map(t=>`<div>${esc(t)}</div>`).join('');
 }
@@ -883,7 +866,6 @@ $('fTipo').onchange=e=>{ estado.tipo=e.target.value; render(); };
 $('fLoja').onchange=e=>{ estado.loja=e.target.value; render(); };
 $('fSemana').onchange=e=>{ estado.semana=e.target.value; render(); };
 $('btnLimpar').onclick=()=>{ estado={periodo:'tudo',ini:null,fim:null,companhia:'',cidade:'',tipo:'',loja:'',semana:''}; $('dtIni').value=''; $('dtFim').value=''; $('datasCustom').classList.remove('on'); montarPeriodo(); montarSelects(); render(); };
-$('btnArquivo').onclick=()=>$('inArquivo').click();
 $('btnExcel').onclick=baixarExcel;
 function celula(v){
   if(v==null) return '';
@@ -891,35 +873,8 @@ function celula(v){
   if(typeof v==='object'){ if(v.richText) return v.richText.map(x=>x.text).join('').trim(); if('text' in v) return String(v.text).trim(); if('result' in v) return celula(v.result); }
   return String(v).trim();
 }
-$('drop').onclick=()=>$('inArquivo').click();
-$('drop').onkeydown=e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); $('inArquivo').click(); } };
-['dragover','dragenter'].forEach(ev=>$('drop').addEventListener(ev,e=>{ e.preventDefault(); $('drop').classList.add('over'); }));
-['dragleave','drop'].forEach(ev=>$('drop').addEventListener(ev,e=>{ e.preventDefault(); $('drop').classList.remove('over'); }));
-$('drop').addEventListener('drop',e=>{ const f=e.dataTransfer.files[0]; if(f) $('inArquivo').onchange({target:{files:[f],value:''}}); });
 let NOME_ATUAL='relatorio';
 (async()=>{ const c=window.claude; if(c&&c.use){ downloadsNs=await c.use('downloads').catch(()=>null); } })();
-$('inArquivo').onchange=async e=>{
-  const f=e.target.files[0]; if(!f) return;
-  $('status').textContent='Lendo arquivo…';
-  try{
-    let linhas;
-    if(/\.csv$/i.test(f.name)){ linhas=parseCSV(await f.text()); }
-    else{
-      if(!window.ExcelJS) throw new Error('biblioteca de Excel não carregou');
-      const wb=new ExcelJS.Workbook(); await wb.xlsx.load(await f.arrayBuffer());
-      const ws=wb.worksheets[0], grade=[];
-      ws.eachRow({includeEmpty:false},row=>{ const v=[]; for(let i=1;i<=ws.columnCount;i++) v.push(celula(row.getCell(i).value)); grade.push(v); });
-      const head=(grade.shift()||[]).map(h=>String(h).trim());
-      linhas=grade.filter(r=>r.some(v=>v!=='')).map(r=>Object.fromEntries(head.map((h,i)=>[h,r[i]??''])));
-    }
-    const falta=OBRIGATORIAS.filter(c=>linhas.length&&!(c in linhas[0]));
-    if(!linhas.length||falta.length){ mostrarAviso(linhas.length?MSG.colunas+falta.join(', ')+'.':'O arquivo está vazio.',true); $('status').textContent='Arquivo inválido'; return; }
-    preparar(linhas); mostrarAviso(''); document.body.classList.remove('stale');
-    document.body.classList.remove('vazio'); NOME_ATUAL=f.name; $('status').textContent='Relatório: '+f.name; $('fonteTxt').textContent=periodoTxt();
-    montarSelects(); render(); buscar(); rodape();
-  }catch(err){ mostrarAviso('Não foi possível ler o arquivo. Envie o XLSX ou CSV exportado do sistema. ('+((err&&err.message)||'erro')+')',true); $('status').textContent='Erro no arquivo'; }
-  finally{ e.target.value=''; }
-};
 montarSelects(); render();
 function periodoTxt(){ const ds=BASE.map(r=>r.ref).sort((x,y)=>x-y); if(!ds.length) return 'Sem dados';
   return 'Prazos de entrega de '+ds[0].toLocaleDateString('pt-BR')+' a '+ds[ds.length-1].toLocaleDateString('pt-BR'); }
